@@ -11,6 +11,8 @@ interface FlyerPreviewProps {
 export const FlyerPreview = forwardRef<ViewShot, FlyerPreviewProps>(({ flyer }, ref) => {
     const theme = THEMES.find((t) => t.id === flyer.themeId) || THEMES[0];
 
+    const hasAdultProducts = flyer.products.some(p => p.isAdult);
+
     return (
         <ViewShot ref={ref} options={{ format: 'png', quality: 0.9 }}>
             <View className="w-full bg-white flex-1 relative overflow-hidden shadow-sm rounded-xl mb-8">
@@ -121,11 +123,12 @@ export const FlyerPreview = forwardRef<ViewShot, FlyerPreviewProps>(({ flyer }, 
                         </View>
                     ) : null}
                     <Text className="text-[10px] font-medium opacity-50 text-center">
-                        Imagens meramente ilustrativas. Beba com moderação.
+                        Imagens meramente ilustrativas.{hasAdultProducts ? ' Beba com moderação.' : ''}
                     </Text>
                 </View>
             </View>
         </ViewShot>
+
     );
 });
 
