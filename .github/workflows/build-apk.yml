@@ -1,4 +1,4 @@
-name: Build Android APK (v6)
+name: Build Android APK (v7)
 
 on:
   push:
@@ -33,36 +33,32 @@ jobs:
       - name: 🏗️ Gerar projeto nativo (prebuild)
         run: npx expo prebuild --platform android --no-install
 
-      - name: 📋 Criar diretório de assets
-        run: mkdir -p android/app/src/main/assets
-
-      - name: 📦 Gerar Bundle JS Offline
+      - name: 📦 Gerar Bundle JS Offline (Expo SDK 54 style)
         run: |
-          npx react-native bundle \
+          mkdir -p android/app/src/main/assets
+          npx expo export:embed \
             --platform android \
-            --dev false \
             --entry-file index.ts \
             --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res/
+            --assets-dest android/app/src/main/res/ \
+            --dev false
 
       - name: 🔍 Verificar arquivos gerados
         run: |
-          ls -l android/app/src/main/assets/
+          ls -R android/app/src/main/assets/ || echo "Assets folder empty"
           ls -l android/gradlew
 
       - name: 🔑 Configurar permissões
         run: chmod +x android/gradlew
 
-      - name: 🔨 Compilar APK (Debug Offline)
+      - name: 🔨 Compilar APK (Standalone)
         run: |
           cd android
-          # Usamos assembleDebug pois ele não exige chaves de produção (keystore)
-          # Mas como já geramos o bundle acima, ele será incluído no APK.
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: 📤 Upload APK Instalável
         uses: actions/upload-artifact@v4
         with:
-          name: EncartesFacil-v6
+          name: EncartesFacil-v7
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
