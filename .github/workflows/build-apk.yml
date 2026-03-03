@@ -30,16 +30,23 @@ jobs:
       - name: 📦 Instalar dependências
         run: npm ci
 
-      - name: 🤖 Instalar Expo CLI e EAS CLI
-        run: npm install -g expo-cli eas-cli
-
       - name: 🏗️ Gerar projeto nativo Android (prebuild)
         run: npx expo prebuild --platform android --no-install
+
+      - name: 📦 Gerar Bundle JS Offline
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.ts \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
 
       - name: 🔑 Configurar permissões do Gradle
         run: chmod +x android/gradlew
 
-      - name: 🔨 Compilar APK (debug)
+      - name: 🔨 Compilar APK (Standalone Debug)
         run: |
           cd android
           ./gradlew assembleDebug --no-daemon
@@ -47,6 +54,6 @@ jobs:
       - name: 📤 Upload APK como artefato
         uses: actions/upload-artifact@v4
         with:
-          name: EncartesFacil-APK
+          name: EncartesFacil-Instalador
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
