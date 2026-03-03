@@ -177,7 +177,7 @@ export default function App() {
                   {THEMES.map((theme: Theme) => (
                     <TouchableOpacity
                       key={theme.id}
-                      onPress={() => setFlyer({ ...flyer, themeId: theme.id })}
+                      onPress={() => setFlyer(prev => ({ ...prev, themeId: theme.id }))}
                       className={`p-3 rounded-xl border-2 flex-1 min-w-[45%] ${flyer.themeId === theme.id
                         ? 'border-red-500 bg-red-50'
                         : 'border-gray-100 bg-gray-50'
@@ -195,7 +195,7 @@ export default function App() {
                     <TextInput
                       className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base"
                       value={flyer.storeName}
-                      onChangeText={(text) => setFlyer({ ...flyer, storeName: text })}
+                      onChangeText={(text) => setFlyer(prev => ({ ...prev, storeName: text }))}
                       placeholder="Ex: Supermercado Bom Preço"
                     />
                   </View>
@@ -204,7 +204,7 @@ export default function App() {
                     <TextInput
                       className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base"
                       value={flyer.storeAddress}
-                      onChangeText={(text) => setFlyer({ ...flyer, storeAddress: text })}
+                      onChangeText={(text) => setFlyer(prev => ({ ...prev, storeAddress: text }))}
                       placeholder="Ex: Rua das Flores, 123 - Centro"
                     />
                   </View>
@@ -213,7 +213,7 @@ export default function App() {
                     <TextInput
                       className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base"
                       value={flyer.validUntil}
-                      onChangeText={(text) => setFlyer({ ...flyer, validUntil: text })}
+                      onChangeText={(text) => setFlyer(prev => ({ ...prev, validUntil: text }))}
                       placeholder="Ex: Válido até 15/10"
                     />
                   </View>

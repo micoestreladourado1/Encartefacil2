@@ -88,15 +88,17 @@ export const FlyerPreview = forwardRef<ViewShot, FlyerPreviewProps>(({ flyer }, 
                                         )}
                                     </View>
                                     <View className="flex-1 flex-col">
-                                        <Text className="text-sm font-semibold text-gray-800 mb-1 leading-tight" numberOfLines={2}>{product.name}</Text>
+                                        <Text className="text-sm font-semibold text-gray-800 mb-1 leading-tight" numberOfLines={2}>
+                                            {product.name || 'Produto sem nome'}
+                                        </Text>
                                         <View className="mt-auto pt-2">
                                             {hasPromotion && (
                                                 <Text className="text-xs text-gray-400 line-through">
-                                                    De: R$ {product.oldPrice.toFixed(2).replace('.', ',')}
+                                                    De: R$ {(product.oldPrice || 0).toFixed(2).replace('.', ',')}
                                                 </Text>
                                             )}
                                             <Text className="text-xl font-black text-red-600 leading-none">
-                                                R$ {(hasPromotion ? product.newPrice! : product.oldPrice).toFixed(2).replace('.', ',')}
+                                                R$ {(hasPromotion ? (product.newPrice || 0) : (product.oldPrice || 0)).toFixed(2).replace('.', ',')}
                                             </Text>
                                         </View>
                                     </View>
