@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK (FINAL)
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build APK
+    name: Build Standalone APK
     runs-on: ubuntu-latest
 
     steps:
@@ -30,20 +30,33 @@ jobs:
       - name: 📦 Instalar dependências
         run: npm ci
 
-      - name: 🏗️ Gerar projeto nativo Android (prebuild)
+      - name: 🏗️ Gerar projeto nativo (prebuild)
         run: npx expo prebuild --platform android --no-install
 
-      - name: 🔑 Configurar permissões do Gradle
-        run: chmod +x android/gradlew
+      - name: 📋 Preparar estrutura e bundle
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.ts \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res/
 
-      - name: 🔨 Compilar APK (Standalone)
+      - name: 🔑 Configurar permissões e assinatura de Debug para Release
+        run: |
+          chmod +x android/gradlew
+          # Comando para usar a chave de debug em builds de release (facilita o teste sem keystore)
+          sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' android/app/build.gradle
+
+      - name: 🔨 Compilar APK (Release v5)
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon --stacktrace -PreactNativeBundleDebug=true
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: 📤 Upload APK como artefato
+      - name: 📤 Upload APK Instalável
         uses: actions/upload-artifact@v4
         with:
-          name: EncartesFacil-Instalador
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: EncartesFacil-Final
+          path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
