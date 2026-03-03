@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Switch, Modal, FlatList, Image, ActivityIndicator, Alert } from 'react-native';
 import { Product } from '../types';
-import { Search, X, Check, Loader2 } from 'lucide-react';
+import { Search, X, Check } from 'lucide-react-native';
 
 interface ProductFormProps {
     onAdd: (product: Omit<Product, 'id'>) => void;
 }
 
-export function ProductForm({ onAdd }: ProductFormProps) {
+export const ProductForm: React.FC<ProductFormProps> = ({ onAdd }) => {
     const [name, setName] = useState('');
     const [oldPrice, setOldPrice] = useState('');
     const [newPrice, setNewPrice] = useState('');
@@ -17,9 +18,10 @@ export function ProductForm({ onAdd }: ProductFormProps) {
     const [searchResults, setSearchResults] = useState<string[]>([]);
 
     const handleSearch = async () => {
+        console.log('Search triggered for:', name);
         const trimmedName = name.trim();
         if (!trimmedName) {
-            alert('Busca de Imagem: Por favor, digite o nome do produto primeiro.');
+            Alert.alert('Busca de Imagem', 'Por favor, digite o nome do produto primeiro.');
             return;
         }
 
@@ -28,45 +30,52 @@ export function ProductForm({ onAdd }: ProductFormProps) {
         setSearchResults([]);
 
         try {
-            const query = encodeURIComponent(`${name} produto supermercado png fundo transparente`);
-            // Try different Google UI parameters to get a scrapeable result
-            const searchUrl = `https://www.google.com.br/search?q=${query}&tbm=isch&asearch=ichunk&async=_id:rg_s,_pms:s`;
+            const query = encodeURIComponent(`${trimmedName} produto fundo transparente png`);
+            // We use different parameters to try and get a simplified HTML or JSON response
+            const searchUrl = `https://www.google.com.br/search?q=${query}&tbm=isch&udm=2`;
 
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(searchUrl)}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error('Falha na resposta do servidor');
+            const response = await fetch(searchUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Mobile Safari/537.36'
+                },
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error(`Google returned ${response.status}`);
 
             const html = await response.text();
-
             const urls: string[] = [];
 
-            // Pattern 1: Direct imgurl from Google's redirect mechanism
-            // Hardened: Replaced [^&" ]+ with [^&" \s]+ and added length limit
-            const imgUrlRegex = /imgurl=(https?:\/\/[^&" \s]{10,500})/g;
-            let match;
-            while ((match = imgUrlRegex.exec(html)) !== null && urls.length < 10) {
-                const url = decodeURIComponent(match[1]);
-                if (url.startsWith('http') && !urls.includes(url)) urls.push(url);
+            // Pattern 1: Modern AF_initDataCallback JSON structure
+            const jsonRegex = /\["(https?:\/\/[^"]+\.(png|jpg|jpeg|webp))",\d+,\d+\]/g;
+            let jMatch;
+            while ((jMatch = jsonRegex.exec(html)) !== null && urls.length < 15) {
+                const url = jMatch[1];
+                if (!url.includes('gstatic') && !url.includes('google') && !urls.includes(url)) {
+                    urls.push(url);
+                }
             }
 
-            // Pattern 2: Modern JSON-like structure (AF_initDataCallback)
+            // Pattern 2: Classic imgurl redirect
             if (urls.length < 5) {
-                // Hardened: Specifying characters more strictly
-                const jsonRegex = /\["(https?:\/\/[a-zA-Z0-9\-\._~:\/\?#\[\]@!$&'\(\)\*\+,;=%]+\.(?:png|jpg|jpeg|webp))",\d+,\d+\]/g;
-                let jMatch;
-                while ((jMatch = jsonRegex.exec(html)) !== null && urls.length < 15) {
-                    const url = jMatch[1];
-                    if (!url.includes('gstatic') && !url.includes('google') && !urls.includes(url)) {
+                const regex = /imgurl=(https?:\/\/[^&"]+)/g;
+                let match;
+                while ((match = regex.exec(html)) !== null && urls.length < 15) {
+                    const url = decodeURIComponent(match[1]);
+                    if (url.startsWith('http') && !urls.includes(url)) {
                         urls.push(url);
                     }
                 }
             }
 
-            // Pattern 3: Data-src / src thumbnails
-            if (urls.length < 8) {
-                // Hardened: specific domains and limited character set
-                const thumbRegex = /src="(https?:\/\/(?:encrypted-tbn[0-9]|lh[0-9]\.googleusercontent)\.[a-zA-Z0-9\-\._~:\/\?#\[\]@!$&'\(\)\*\+,;=%]+)"/g;
+            // Pattern 3: Data URI / Thumbnails (often more reliable)
+            if (urls.length < 3) {
+                const thumbRegex = /"(https?:\/\/[^"]+(gstatic|googleusercontent)[^"]+)"/g;
                 let tMatch;
                 while ((tMatch = thumbRegex.exec(html)) !== null && urls.length < 20) {
                     const url = tMatch[1];
@@ -74,42 +83,20 @@ export function ProductForm({ onAdd }: ProductFormProps) {
                 }
             }
 
-            // Pattern 4: Broad scan for any PNG/JPG URL
-            if (urls.length < 4) {
-                // Hardened: mandatory TLD/domain structure and specific extensions
-                const broadRegex = /(https?:\/\/[a-zA-Z0-9\-\._]+(?:\.[a-zA-Z0-9\-\._]+)+[a-zA-Z0-9\-\._~:\/\?#\[\]@!$&'\(\)\*\+,;=%]+\.(?:png|jpg|webp))/g;
-                let bMatch;
-                while ((bMatch = broadRegex.exec(html)) !== null && urls.length < 15) {
-                    const url = bMatch[1];
-                    if (!url.includes('google') && !urls.includes(url)) urls.push(url);
-                }
-            }
-
-            // High-quality Fallbacks for demo items
+            // Fallbacks for common products
             if (urls.length === 0) {
-                const lowerName = name.toLowerCase();
-                if (lowerName.includes('arroz') || lowerName.includes('sepe')) {
-                    urls.push('https://ayrtonsenna.vtexassets.com/arquivos/ids/156845/arroz-tipo-1-sepe-agroindustrial-5kg.png');
-                    urls.push('https://static.carone.com.br/produtos/arroz-tp1-sepe-5kg-bco_25501_1.png');
-                } else if (lowerName.includes('feijao')) {
-                    urls.push('https://static.carone.com.br/produtos/feijao-preto-tipiti-1kg_1130_1.png');
-                } else if (lowerName.includes('oleo')) {
-                    urls.push('https://static.carone.com.br/produtos/oleo-de-soja-vila-velha-900ml_22240_1.png');
-                }
+                const lower = trimmedName.toLowerCase();
+                if (lower.includes('arroz')) urls.push('https://static.carone.com.br/produtos/arroz-tp1-sepe-5kg-bco_25501_1.png');
+                if (lower.includes('feijão')) urls.push('https://static.carone.com.br/produtos/feijao-preto-tipiti-1kg_1130_1.png');
+                if (lower.includes('oleo') || lower.includes('óleo')) urls.push('https://static.carone.com.br/produtos/oleo-de-soja-vila-velha-900ml_22240_1.png');
+                if (lower.includes('leite')) urls.push('https://static.carone.com.br/produtos/leite-uht-int-damare-1l_25301_1.png');
             }
 
-            // Dedup and filter
-            const finalResults = [...new Set(urls)].filter(u => u.length > 10);
-            setSearchResults(finalResults);
-        } catch (error) {
+            setSearchResults(urls);
+        } catch (error: any) {
             console.error('Search failed:', error);
-            // Fallback for full failure
-            if (name.toLowerCase().includes('sepe')) {
-                setSearchResults([
-                    'https://ayrtonsenna.vtexassets.com/arquivos/ids/156845/arroz-tipo-1-sepe-agroindustrial-5kg.png',
-                    'https://static.carone.com.br/produtos/arroz-tp1-sepe-5kg-bco_25501_1.png'
-                ]);
-            }
+            const msg = error.name === 'AbortError' ? 'Tempo limite esgotado. Verifique sua conexão.' : 'Não conseguimos conectar à busca agora.';
+            Alert.alert('Erro na Busca', msg);
         } finally {
             setIsSearching(false);
         }
@@ -120,10 +107,9 @@ export function ProductForm({ onAdd }: ProductFormProps) {
         setIsSearchModalOpen(false);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = () => {
         if (!name || !oldPrice) {
-            alert('Erro: Nome e Preço Atual são obrigatórios.');
+            Alert.alert('Erro', 'Nome e Preço Atual são obrigatórios.');
             return;
         }
         onAdd({
@@ -138,175 +124,172 @@ export function ProductForm({ onAdd }: ProductFormProps) {
         setNewPrice('');
         setImageUrl('');
         setIsAdult(false);
+        Alert.alert('Sucesso', 'Produto adicionado ao encarte!');
     };
 
     return (
-        <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold text-gray-800 text-lg">Adicionar Produto</h2>
-                <div className="bg-blue-50 px-2 py-1 rounded-md">
-                    <span className="text-blue-600 text-[10px] font-bold uppercase">Busca Inteligente</span>
-                </div>
-            </div>
+        <View className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">
+            <View className="flex-row justify-between items-center mb-4">
+                <Text className="font-bold text-gray-800 text-lg">Adicionar Produto</Text>
+                <View className="bg-blue-50 px-2 py-1 rounded-md">
+                    <Text className="text-blue-600 text-[10px] font-bold">BUSCA INTELIGENTE</Text>
+                </View>
+            </View>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Nome do Produto *</label>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            className="flex-1 px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base outline-none focus:ring-2 focus:ring-red-500"
+            <View className="gap-4">
+                <View>
+                    <Text className="text-xs font-medium text-gray-500 mb-1">Nome do Produto *</Text>
+                    <View className="flex-row gap-2">
+                        <TextInput
+                            className="flex-1 px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            onChangeText={setName}
                             placeholder="Ex: Arroz Sepé 5kg"
-                            required
+                            placeholderTextColor="#9ca3af"
                         />
-                        <button
-                            type="button"
-                            onClick={handleSearch}
-                            className={`px-4 h-12 rounded-lg flex justify-center items-center shadow-sm text-white transition-all bg-blue-600 hover:bg-blue-700`}
-                            style={{ opacity: name.trim() ? 1 : 0.7 }}
+                        <TouchableOpacity
+                            onPress={handleSearch}
+                            activeOpacity={0.7}
+                            className={`px-4 h-12 rounded-lg justify-center items-center shadow-sm bg-blue-600`}
+                            style={{ opacity: name.trim() ? 1 : 0.6 }}
                             disabled={isSearching}
                         >
-                            {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-                        </button>
-                    </div>
-                </div>
+                            {isSearching ? <ActivityIndicator color="white" size="small" /> : <Search color="white" size={20} />}
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Preço Atual (R$) *</label>
-                        <input
-                            type="text"
-                            className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base outline-none focus:ring-2 focus:ring-red-500"
+                <View className="flex-row gap-4">
+                    <View className="flex-1">
+                        <Text className="text-xs font-medium text-gray-500 mb-1">Preço Atual (R$) *</Text>
+                        <TextInput
+                            keyboardType="numeric"
+                            className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base"
                             value={oldPrice}
-                            onChange={(e) => setOldPrice(e.target.value)}
+                            onChangeText={setOldPrice}
                             placeholder="0,00"
-                            required
                         />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Preço Oferta (R$)</label>
-                        <input
-                            type="text"
-                            className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base outline-none focus:ring-2 focus:ring-red-500"
+                    </View>
+                    <View className="flex-1">
+                        <Text className="text-xs font-medium text-gray-500 mb-1">Preço Oferta (R$)</Text>
+                        <TextInput
+                            keyboardType="numeric"
+                            className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base"
                             value={newPrice}
-                            onChange={(e) => setNewPrice(e.target.value)}
+                            onChangeText={setNewPrice}
                             placeholder="0,00"
                         />
-                    </div>
-                </div>
+                    </View>
+                </View>
 
-                <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">URL da Imagem</label>
-                    <input
-                        type="text"
-                        className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base outline-none focus:ring-2 focus:ring-red-500"
+                <View>
+                    <Text className="text-xs font-medium text-gray-500 mb-1">URL da Imagem</Text>
+                    <TextInput
+                        className="w-full px-3 h-12 bg-gray-50 border border-gray-200 rounded-lg text-base"
                         value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
+                        onChangeText={setImageUrl}
                         placeholder="Pesquise ou cole a URL"
+                        autoCapitalize="none"
+                        autoCorrect={false}
                     />
-                </div>
+                </View>
 
-                {imageUrl && (
-                    <div className="flex items-center gap-3 p-2 bg-blue-50/30 rounded-xl border border-blue-100">
-                        <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-white p-1 shrink-0">
-                            <img src={imageUrl} alt="Thumbnail" className="w-full h-full object-contain" />
-                        </div>
-                        <div className="flex-1">
-                            <div className="text-[10px] text-blue-600 font-bold mb-1">IMAGEM SELECIONADA</div>
-                            <button
-                                type="button"
-                                onClick={() => setImageUrl('')}
-                                className="bg-red-50 px-3 py-1 rounded-full border border-red-100 text-red-500 text-[10px] font-bold hover:bg-red-100 transition-colors"
-                            >
-                                Remover
-                            </button>
-                        </div>
-                        <div className="bg-green-500 rounded-full p-1">
-                            <Check className="w-3.5 h-3.5 text-white" />
-                        </div>
-                    </div>
-                )}
+                {imageUrl ? (
+                    <View className="flex-row items-center gap-3 p-2 bg-blue-50/30 rounded-xl border border-blue-100">
+                        <View className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-white">
+                            <Image source={{ uri: imageUrl }} className="w-full h-full" resizeMode="contain" />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="text-[10px] text-blue-600 font-bold mb-1">IMAGEM SELECIONADA</Text>
+                            <TouchableOpacity onPress={() => setImageUrl('')} className="bg-red-50 self-start px-3 py-1 rounded-full border border-red-100">
+                                <Text className="text-red-500 text-[10px] font-bold">Remover</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View className="bg-green-500 rounded-full p-1">
+                            <Check color="white" size={14} />
+                        </View>
+                    </View>
+                ) : null}
 
-                <div className="flex items-center justify-between py-2 border-t border-gray-50">
-                    <label htmlFor="isAdult" className="text-sm font-medium text-gray-700">Produto p/ +18 anos</label>
-                    <input
-                        type="checkbox"
-                        id="isAdult"
-                        checked={isAdult}
-                        onChange={(e) => setIsAdult(e.target.checked)}
-                        className="w-10 h-6 bg-gray-200 rounded-full appearance-none checked:bg-red-600 transition-all cursor-pointer relative after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:w-4 after:h-4 after:rounded-full after:transition-all checked:after:translate-x-4"
-                    />
-                </div>
+                <View className="flex-row items-center justify-between py-2 border-t border-gray-50">
+                    <Text className="text-sm font-medium text-gray-700">Produto p/ +18 anos</Text>
+                    <Switch value={isAdult} onValueChange={setIsAdult} trackColor={{ true: '#ef4444' }} />
+                </View>
 
-                <button
-                    type="submit"
-                    className="w-full h-14 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md flex items-center justify-center mt-2 font-black text-lg uppercase tracking-tight transition-all active:scale-95"
+                <TouchableOpacity
+                    className="w-full h-14 bg-red-600 rounded-xl shadow-md flex items-center justify-center mt-2 active:bg-red-700"
+                    activeOpacity={0.8}
+                    onPress={handleSubmit}
                 >
-                    Salvar no Encarte
-                </button>
-            </form>
+                    <Text className="text-white font-black text-lg uppercase tracking-tight">Salvar no Encarte</Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Search Modal */}
-            {isSearchModalOpen && (
-                <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-[100] p-0 sm:p-4">
-                    <div className="bg-white w-full max-w-[500px] rounded-t-[35px] sm:rounded-[35px] p-6 h-[80vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
-                        <div className="w-12 h-1 bg-gray-200 rounded-full self-center mb-6 shrink-0" />
-
-                        <div className="flex justify-between items-center mb-6 shrink-0">
-                            <div className="flex-1">
-                                <h3 className="text-2xl font-black text-gray-800 tracking-tighter">Resultados Google</h3>
-                                <p className="text-sm text-gray-500 font-medium truncate">Fundo transparente: "{name}"</p>
-                            </div>
-                            <button onClick={() => setIsSearchModalOpen(false)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full ml-4 transition-colors">
-                                <X className="w-6 h-6 text-gray-600" />
-                            </button>
-                        </div>
+            <Modal
+                visible={isSearchModalOpen}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setIsSearchModalOpen(false)}
+            >
+                <View className="flex-1 bg-black/60 justify-end">
+                    <View className="bg-white rounded-t-[35px] p-6 h-[75%] shadow-2xl">
+                        <View className="w-12 h-1 bg-gray-200 rounded-full self-center mb-6" />
+                        <View className="flex-row justify-between items-center mb-6">
+                            <View className="flex-1">
+                                <Text className="text-2xl font-black text-gray-800 tracking-tighter">Resultados Google</Text>
+                                <Text className="text-sm text-gray-500 font-medium" numberOfLines={1}>Fundo transparente: "{name}"</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setIsSearchModalOpen(false)} className="p-2 bg-gray-100 rounded-full ml-4">
+                                <X color="#374151" size={24} />
+                            </TouchableOpacity>
+                        </View>
 
                         {isSearching ? (
-                            <div className="flex-1 flex flex-col justify-center items-center">
-                                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-                                <p className="mt-6 text-gray-500 font-bold text-base">Buscando na rede...</p>
-                                <p className="mt-2 text-gray-400 text-xs italic">Isso pode levar alguns segundos</p>
-                            </div>
+                            <View className="flex-1 justify-center items-center">
+                                <ActivityIndicator size="large" color="#2563eb" />
+                                <Text className="mt-6 text-gray-500 font-bold text-base">Buscando na rede...</Text>
+                                <Text className="mt-2 text-gray-400 text-xs italic">Isso pode levar alguns segundos</Text>
+                            </View>
                         ) : (
-                            <div className="flex-1 overflow-y-auto">
-                                <div className="grid grid-cols-2 gap-4 pb-10">
-                                    {searchResults.map((url, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => selectImage(url)}
-                                            className="aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 shadow-sm relative group hover:border-blue-500 transition-all p-2"
-                                        >
-                                            <img src={url} alt={`Resultado ${index}`} className="w-full h-full object-contain" />
-                                            <div className="absolute bottom-2 right-2 p-1.5 bg-blue-600/90 rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Check className="w-3 h-3 text-white" />
-                                            </div>
-                                        </button>
-                                    ))}
-                                    {searchResults.length === 0 && (
-                                        <div className="col-span-2 py-20 text-center">
-                                            <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                <Search className="w-10 h-10 text-gray-300" />
-                                            </div>
-                                            <p className="text-gray-500 font-bold text-lg">Nenhuma imagem encontrada</p>
-                                            <p className="text-gray-400 text-sm mt-2">Tente simplificar o nome do produto.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <FlatList
+                                data={searchResults}
+                                keyExtractor={(item, index) => index.toString()}
+                                numColumns={2}
+                                columnWrapperStyle={{ justifyContent: 'space-between' }}
+                                showsVerticalScrollIndicator={false}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        onPress={() => selectImage(item)}
+                                        className="w-[48%] aspect-square bg-gray-50 rounded-2xl mb-4 overflow-hidden border border-gray-100 shadow-sm relative"
+                                    >
+                                        <Image source={{ uri: item }} className="w-full h-full" resizeMode="cover" />
+                                        <View className="absolute bottom-2 right-2 p-1.5 bg-blue-600/90 rounded-lg shadow-sm">
+                                            <Check color="white" size={12} />
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+                                ListEmptyComponent={
+                                    <View className="flex-1 justify-center items-center mt-20">
+                                        <View className="bg-gray-50 p-6 rounded-full mb-4">
+                                            <Search color="#9ca3af" size={40} />
+                                        </View>
+                                        <Text className="text-gray-500 font-bold text-lg text-center">Nenhuma imagem encontrada</Text>
+                                        <Text className="text-gray-400 text-center mt-2 px-6">Tente simplificar o nome do produto para uma busca mais ampla.</Text>
+                                    </View>
+                                }
+                            />
                         )}
 
-                        <div className="mt-4 pt-4 border-t border-gray-100 shrink-0">
-                            <p className="text-[10px] text-gray-400 text-center italic leading-tight">
-                                Nota: Esta busca experimental pode ser afetada por politicas de CORS no navegador.<br />
+                        <View className="mt-4 pt-4 border-t border-gray-100">
+                            <Text className="text-[10px] text-gray-400 text-center italic leading-tight">
+                                Nota: Esta busca experimental simula resultados do Google Images.{"\n"}
                                 As imagens podem ter direitos autorais. Use com responsabilidade.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </section>
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </View>
     );
-}
+};
