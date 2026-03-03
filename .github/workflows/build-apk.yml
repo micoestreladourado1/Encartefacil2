@@ -41,7 +41,8 @@ jobs:
             --dev false \
             --entry-file index.ts \
             --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res
+            --assets-dest android/app/src/main/res \
+            --reset-cache
 
       - name: 🔑 Configurar permissões do Gradle
         run: chmod +x android/gradlew
@@ -49,7 +50,7 @@ jobs:
       - name: 🔨 Compilar APK (Standalone Debug)
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: 📤 Upload APK como artefato
         uses: actions/upload-artifact@v4
