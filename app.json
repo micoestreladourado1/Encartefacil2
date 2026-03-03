@@ -29,11 +29,6 @@
     },
     "plugins": [
       "expo-sqlite"
-    ],
-    "extra": {
-      "expo-cli": {
-        "bundleInside": true
-      }
-    }
+    ]
   }
 }

@@ -165,6 +165,7 @@ export default function App() {
           contentContainerStyle={{ padding: 16 }}
           data={flyer.products}
           keyExtractor={(item) => item.id}
+          extraData={flyer}
           renderItem={renderProductItem}
           ListHeaderComponent={
             <View>
@@ -233,7 +234,11 @@ export default function App() {
           ListFooterComponent={
             <View className="mt-8 mb-12">
               <Text className="text-lg font-bold text-gray-800 mb-4 px-2">Pré-visualização</Text>
-              <FlyerPreview ref={viewShotRef} flyer={flyer} />
+              <FlyerPreview
+                key={`preview-${flyer.products.length}-${flyer.themeId}`}
+                ref={viewShotRef}
+                flyer={flyer}
+              />
             </View>
           }
         />
