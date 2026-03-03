@@ -1,4 +1,4 @@
-name: Build Android APK (FINAL)
+name: Build Android APK (v6)
 
 on:
   push:
@@ -33,9 +33,11 @@ jobs:
       - name: 🏗️ Gerar projeto nativo (prebuild)
         run: npx expo prebuild --platform android --no-install
 
-      - name: 📋 Preparar estrutura e bundle
+      - name: 📋 Criar diretório de assets
+        run: mkdir -p android/app/src/main/assets
+
+      - name: 📦 Gerar Bundle JS Offline
         run: |
-          mkdir -p android/app/src/main/assets
           npx react-native bundle \
             --platform android \
             --dev false \
@@ -43,20 +45,24 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res/
 
-      - name: 🔑 Configurar permissões e assinatura de Debug para Release
+      - name: 🔍 Verificar arquivos gerados
         run: |
-          chmod +x android/gradlew
-          # Comando para usar a chave de debug em builds de release (facilita o teste sem keystore)
-          sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' android/app/build.gradle
+          ls -l android/app/src/main/assets/
+          ls -l android/gradlew
 
-      - name: 🔨 Compilar APK (Release v5)
+      - name: 🔑 Configurar permissões
+        run: chmod +x android/gradlew
+
+      - name: 🔨 Compilar APK (Debug Offline)
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          # Usamos assembleDebug pois ele não exige chaves de produção (keystore)
+          # Mas como já geramos o bundle acima, ele será incluído no APK.
+          ./gradlew assembleDebug --no-daemon
 
       - name: 📤 Upload APK Instalável
         uses: actions/upload-artifact@v4
         with:
-          name: EncartesFacil-Final
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: EncartesFacil-v6
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
