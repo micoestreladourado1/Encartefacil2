@@ -8,7 +8,7 @@ import { getCurrentFlyer, saveCurrentFlyer } from './src/database/repository';
 import { ProductForm } from './src/components/ProductForm';
 import { FlyerPreview } from './src/components/FlyerPreview';
 import { Flyer, Product, Theme } from './src/types';
-import { Trash2, Share2 } from 'lucide-react-native';
+import { Trash2, Share2, Edit2 } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
 import { THEMES } from './src/constants';
@@ -23,7 +23,9 @@ export default function App() {
     products: [],
   });
   const [isDbReady, setIsDbReady] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const viewShotRef = useRef<ViewShot>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -88,6 +90,23 @@ export default function App() {
     }));
   };
 
+  const handleUpdateProduct = (updatedProduct: Product) => {
+    setFlyer((prev) => ({
+      ...prev,
+      products: prev.products.map((p) => p.id === updatedProduct.id ? updatedProduct : p),
+    }));
+    setEditingProduct(null);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+  };
+
   const handleRemoveProduct = useCallback((id: string, productName: string) => {
     Alert.alert(
       'Remover Produto',
@@ -123,17 +142,22 @@ export default function App() {
           R$ {(item.newPrice !== null ? item.newPrice : item.oldPrice).toFixed(2).replace('.', ',')}
         </Text>
       </View>
-      <TouchableOpacity
-        onPress={() => handleRemoveProduct(item.id, item.name)}
-        activeOpacity={0.6}
-        className="p-4 -mr-2 justify-center items-center"
-        style={{ minWidth: 50, minHeight: 50 }}
-        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-      >
-        <View pointerEvents="none">
-          <Trash2 color="#ef4444" size={22} />
-        </View>
-      </TouchableOpacity>
+      <View className="flex-row items-center">
+        <TouchableOpacity
+          onPress={() => handleEditProduct(item)}
+          activeOpacity={0.6}
+          className="p-3 justify-center items-center"
+        >
+          <Edit2 color="#2563eb" size={20} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleRemoveProduct(item.id, item.name)}
+          activeOpacity={0.6}
+          className="p-3 justify-center items-center"
+        >
+          <Trash2 color="#ef4444" size={20} />
+        </TouchableOpacity>
+      </View>
     </View>
   ), [handleRemoveProduct]);
 
@@ -161,6 +185,7 @@ export default function App() {
         </View>
 
         <FlatList
+          ref={flatListRef}
           className="flex-1 bg-gray-100"
           contentContainerStyle={{ padding: 16 }}
           data={flyer.products}
@@ -169,7 +194,12 @@ export default function App() {
           renderItem={renderProductItem}
           ListHeaderComponent={
             <View>
-              <ProductForm onAdd={handleAddProduct} />
+              <ProductForm
+                onAdd={handleAddProduct}
+                editingProduct={editingProduct}
+                onUpdate={handleUpdateProduct}
+                onCancel={handleCancelEdit}
+              />
 
               {/* Theme Selector */}
               <View className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">

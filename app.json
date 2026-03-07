@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "AppMobile",
-    "slug": "AppMobile",
+    "name": "EncartesFacil",
+    "slug": "encartes-facil",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
