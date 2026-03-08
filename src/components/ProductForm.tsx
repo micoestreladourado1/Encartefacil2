@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, Modal, FlatList, Image, ActivityIndicator, Alert } from 'react-native';
 import { Product } from '../types';
-import { Search, X, Check } from 'lucide-react-native';
+import { Search, X, Check, Camera } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 interface ProductFormProps {
     onAdd: (product: Omit<Product, 'id'>) => void;
@@ -121,6 +122,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
         }
     };
 
+    const handleCamera = async () => {
+        try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permissão Negada', 'Precisamos de acesso à câmera para tirar a foto do produto.');
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setImageUrl(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Camera error:', error);
+            Alert.alert('Erro', 'Não foi possível abrir a câmera.');
+        }
+    };
+
     const selectImage = (url: string) => {
         setImageUrl(url);
         setIsSearchModalOpen(false);
@@ -191,6 +215,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
                             disabled={isSearching}
                         >
                             {isSearching ? <ActivityIndicator color="white" size="small" /> : <Search color="white" size={20} />}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={handleCamera}
+                            activeOpacity={0.7}
+                            className="px-4 h-12 rounded-lg justify-center items-center shadow-sm bg-blue-600"
+                        >
+                            <Camera color="white" size={20} />
                         </TouchableOpacity>
                     </View>
                 </View>

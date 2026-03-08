@@ -171,7 +171,7 @@ export default function App() {
               <Text className="text-white font-black italic">E</Text>
             </View>
             <Text className="text-xl font-black tracking-tight text-gray-800">
-              Encartes<Text className="text-red-600">Fácil</Text>
+              Encartes<Text className="text-red-600">Pro</Text>
             </Text>
           </View>
           <View className="mt-4">

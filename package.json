@@ -1,5 +1,5 @@
 {
-  "name": "encartes-facil",
+  "name": "encartes-pro",
   "version": "1.0.1",
   "main": "index.ts",
   "scripts": {
@@ -12,6 +12,7 @@
   "dependencies": {
     "expo": "^54.0.33",
     "expo-file-system": "~19.0.21",
+    "expo-image-picker": "~17.0.10",
     "expo-sharing": "~14.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",

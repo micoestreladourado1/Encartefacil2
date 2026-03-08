@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "EncartesFacil",
-    "slug": "encartes-facil",
+    "name": "EncartesPro",
+    "slug": "encartes-pro",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.jpg",
@@ -16,7 +16,7 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.antigravity.encartesfacil",
+      "package": "com.antigravity.encartespro",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.jpg",
         "backgroundColor": "#ffffff"
