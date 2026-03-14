@@ -52,12 +52,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-            // Use a more recent but still simple mobile User-Agent to get consistent HTML structure
-            const mobileUA = 'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36';
+            // Force a simple mobile view for reliable HTML scraping
+            const mobileUA = 'Mozilla/5.0 (Linux; Android 4.4.2; Nexus 4 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.114 Mobile Safari/537.36';
 
-            // Busca focada em Google Graphics com prefixo 'imagens' para máxima precisão
+            // Google Graphics search with 'udm=2' (modern images) and 'tbm=isch' (legacy images)
             const response = await fetch(
-                `https://www.google.com/search?q=${encodeURIComponent('imagens ' + trimmedName)}&tbm=isch&source=lnms`,
+                `https://www.google.com/search?q=${encodeURIComponent('imagens ' + trimmedName)}&tbm=isch&udm=2`,
                 {
                     headers: { 'User-Agent': mobileUA },
                     signal: controller.signal
@@ -70,33 +70,31 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
             const html = await response.text();
             const urls: string[] = [];
 
-            // Pattern 1: Basic <img> tags (common in simpler mobile versions)
+            // Pattern 1: Classic image tags with src
             const imgRegex = /<img[^>]+src="([^">]+)"/g;
             let match;
-            while ((match = imgRegex.exec(html)) !== null && urls.length < 30) {
+            while ((match = imgRegex.exec(html)) !== null && urls.length < 40) {
                 const url = match[1];
-                // Focus on actual product images and ignore UI elements
-                if (url.startsWith('http') && !url.includes('google.com/favicon') && !url.includes('menu_icon') && !url.includes('search?q=')) {
+                if (url.startsWith('http') && !url.includes('google.com/favicon') && !url.includes('menu_icon')) {
                     if (!urls.includes(url)) urls.push(url);
                 }
             }
 
-            // Pattern 2: Fallback for encrypted gstatic thumbnails (very common in modern responses)
-            const thumbRegex = /"(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"]+)"/g;
-            let tMatch;
-            while ((tMatch = thumbRegex.exec(html)) !== null && urls.length < 40) {
-                const url = tMatch[1];
-                if (!urls.includes(url)) urls.push(url);
-            }
-
-            // Pattern 3: Fallback for JSON-like data patterns (AF_initDataCallback)
-            const jsonImgRegex = /\["(https?:\/\/[^"]+)",\s*[0-9]+,\s*[0-9]+\]/g;
-            let jMatch;
-            while ((jMatch = jsonImgRegex.exec(html)) !== null && urls.length < 50) {
-                const url = jMatch[1];
-                if (!url.includes('gstatic.com') && !urls.includes(url)) {
+            // Pattern 2: Modern data-src / encrypted thumbnails
+            const dataSrcRegex = /data-src="([^">]+)"/g;
+            while ((match = dataSrcRegex.exec(html)) !== null && urls.length < 50) {
+                const url = match[1];
+                if (url.startsWith('http') && !urls.includes(url)) {
                     urls.push(url);
                 }
+            }
+
+            // Pattern 3: Static encrypted thumbnails in strings
+            const thumbRegex = /"(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"]+)"/g;
+            let tMatch;
+            while ((tMatch = thumbRegex.exec(html)) !== null && urls.length < 60) {
+                const url = tMatch[1];
+                if (!urls.includes(url)) urls.push(url);
             }
 
             setSearchResults(urls);
