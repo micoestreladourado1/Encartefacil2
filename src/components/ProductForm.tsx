@@ -55,9 +55,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
             // Use a more recent but still simple mobile User-Agent to get consistent HTML structure
             const mobileUA = 'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36';
 
-            // Search for the product name with 'imagens' prefix for better precision
+            // Busca focada em Google Graphics com prefixo 'imagens' para máxima precisão
             const response = await fetch(
-                `https://www.google.com/search?q=${encodeURIComponent('imagens ' + trimmedName)}&tbm=isch`,
+                `https://www.google.com/search?q=${encodeURIComponent('imagens ' + trimmedName)}&tbm=isch&source=lnms`,
                 {
                     headers: { 'User-Agent': mobileUA },
                     signal: controller.signal
