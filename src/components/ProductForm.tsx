@@ -55,9 +55,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
             // Use an old mobile User-Agent to force Google to return a simple, scrapable HTML page (Table-based)
             const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/600.1.3 (KHTML, like Gecko) Version/8.0 Mobile/12A4345d Safari/600.1.4';
 
-            // Search for the product name
+            // Search for the product name with 'imagens' prefix for better precision
             const response = await fetch(
-                `https://www.google.com/search?q=${encodeURIComponent(trimmedName)}&tbm=isch`,
+                `https://www.google.com/search?q=${encodeURIComponent('imagens ' + trimmedName)}&tbm=isch`,
                 {
                     headers: { 'User-Agent': mobileUA },
                     signal: controller.signal
@@ -292,7 +292,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
                         <View className="w-12 h-1 bg-gray-200 rounded-full self-center mb-6" />
                         <View className="flex-row justify-between items-center mb-6">
                             <View className="flex-1">
-                                <Text className="text-2xl font-black text-gray-800 tracking-tighter">Busca de Imagens</Text>
+                                <Text className="text-2xl font-black text-gray-800 tracking-tighter">Google Graphics</Text>
                                 <Text className="text-sm text-gray-500 font-medium" numberOfLines={1}>Produto: "{name}"</Text>
                             </View>
                             <TouchableOpacity onPress={() => setIsSearchModalOpen(false)} className="p-2 bg-gray-100 rounded-full ml-4">
@@ -338,7 +338,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
 
                         <View className="mt-4 pt-4 border-t border-gray-100">
                             <Text className="text-[10px] text-gray-400 text-center italic leading-tight">
-                                Imagens fornecidas pelo Open Food Facts (openfoodfacts.org).{"\n"}
+                                Resultados via Google Graphics.{"\n"}
                                 As imagens podem ter direitos autorais. Use com responsabilidade.
                             </Text>
                         </View>
