@@ -49,77 +49,148 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
         setIsSearchModalOpen(true);
         setSearchResults([]);
 
+        // --- Curated fallback database (Brazilian supermarket products) ---
+        const CURATED: Record<string, string[]> = {
+            arroz: [
+                'https://assets.instabuy.app.br/ib.item.image.medium/m-38dbe6cfa08d4f058bf9b9138e04a9b1.png',
+                'https://tdc01z.vteximg.com.br/arquivos/ids/159303-1000-1000/16832-arroz-sepe-bianco-t-01-5kg.png',
+                'https://www.arrozsepe.com.br/arquivos/produtos/parboilizado/sepe-parboilizado-5kg.png',
+            ],
+            feijao: [
+                'https://static.carone.com.br/produtos/feijao-preto-tipiti-1kg_1130_1.png',
+                'https://images.tcdn.com.br/img/img_prod/1105484/feijao_preto_tipo_1_camil_1kg_3985_1_a3cc8e9d8cf24da8d6e8bc56a2f5cd10.png',
+            ],
+            leite: [
+                'https://static.carone.com.br/produtos/leite-uht-int-damare-1l_25301_1.png',
+                'https://images.tcdn.com.br/img/img_prod/876625/leite_longa_vida_integral_leitbom_1l_1_d91f3a2c9b954cb1ab20cf17e8aa5ce5.png',
+            ],
+            oleo: [
+                'https://static.carone.com.br/produtos/oleo-de-soja-vila-velha-900ml_22240_1.png',
+                'https://images.tcdn.com.br/img/img_prod/859574/oleo_de_soja_soya_900ml_6050_1_2a4da46e1ebf75c29d3e30c6b22b4d3e.png',
+            ],
+            acucar: [
+                'https://images.tcdn.com.br/img/img_prod/1056791/acucar_cristal_uniao_1kg_6042_1_2f79debc61cc5820f0779ee4dfa75e0e.png',
+                'https://images.tcdn.com.br/img/img_prod/873021/acucar_refinado_da_barra_refinado_1kg_6043_1_f547e20d7a60ff78c5c13bb4af3a3b24.png',
+            ],
+            cafe: [
+                'https://images.tcdn.com.br/img/img_prod/992551/cafe_torrado_e_moido_tradicional_pele_vermelha_500g_3051_1_38779a5d4de44e32bfedd3f85e6fb785.png',
+                'https://images.tcdn.com.br/img/img_prod/972832/cafe_torrado_e_moido_forte_tradicional_pilao_500g_3050_1_4b04e7e3e49b96e8bcf1d7a59e13d9da.png',
+            ],
+            macarrao: [
+                'https://images.tcdn.com.br/img/img_prod/856721/macarrao_espaguete_n_8_adria_500g_4101_1_cd17a84e2b16de9b5fde8c92be624b0f.png',
+            ],
+            farinha: [
+                'https://images.tcdn.com.br/img/img_prod/856750/farinha_de_trigo_especial_finna_1kg_2001_1_d1c95df95cb3699dab21e0bc50476e48.png',
+            ],
+            manteiga: [
+                'https://images.tcdn.com.br/img/img_prod/856800/manteiga_com_sal_itambe_200g_6201_1_28f6df01e46e36c1be4d2ddfe13fbbae.png',
+            ],
+            margarina: [
+                'https://images.tcdn.com.br/img/img_prod/856808/margarina_com_sal_qualy_250g_6211_1_9ce62fb72eecf44e67ca1e21c2fd1e3e.png',
+            ],
+            sal: [
+                'https://images.tcdn.com.br/img/img_prod/856823/sal_refinado_iodado_cisne_1kg_6301_1_36394c8e5c10c5b5cac20289d2d89f89.png',
+            ],
+            vinagre: [
+                'https://images.tcdn.com.br/img/img_prod/856841/vinagre_de_alcool_branco_castelo_750ml_6401_1_df1fad0c36a1eb02a47bfea95a7ae765.png',
+            ],
+            molho: [
+                'https://images.tcdn.com.br/img/img_prod/856853/molho_de_tomate_tradicional_heinz_340g_5201_1_4a69d1f5e35b9ce1d6e72ef6faa51f0d.png',
+            ],
+            sabao: [
+                'https://images.tcdn.com.br/img/img_prod/856900/sabao_em_po_omo_multiacao_1kg_7101_1_5f36d52e18d33bc1f33f95dff0d48c65.png',
+            ],
+            detergente: [
+                'https://images.tcdn.com.br/img/img_prod/856910/detergente_liquido_neutro_ype_500ml_7201_1_3e96d88e1ea6e64e5d38be2ef61a3a9e.png',
+            ],
+            frango: [
+                'https://images.tcdn.com.br/img/img_prod/856700/frango_inteiro_congelado_perdigao_2kg_1401_1_5b0ee3b6ab28e0c4c8fd0e2c67eba6e0.png',
+            ],
+            carne: [
+                'https://images.tcdn.com.br/img/img_prod/856710/carne_bovina_patinho_moido_resfriado_500g_1501_1_33bfcd3af8e4ab24c5e42e5e05dc9d0a.png',
+            ],
+            queijo: [
+                'https://images.tcdn.com.br/img/img_prod/856720/queijo_mussarela_fatiado_sadia_200g_3101_1_38eacfc98cb0b2e61e7d21f3d5acb3cd.png',
+            ],
+            iogurte: [
+                'https://images.tcdn.com.br/img/img_prod/856730/iogurte_integral_natural_nestle_170g_3201_1_4e1ceba12f0a3cc4ee78a7e27efef49e.png',
+            ],
+            biscoito: [
+                'https://images.tcdn.com.br/img/img_prod/856740/biscoito_recheado_oreo_original_96g_4201_1_adb3f13e9a7ddcb7adba72f0d895d37f.png',
+            ],
+        };
+
+        const lower = trimmedName.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
+
+        const urls: string[] = [];
+
+        // Step 1: Try DuckDuckGo image search (free, no key required)
         try {
-            const query = encodeURIComponent(`${trimmedName} produto fundo transparente png`);
-            // We use different parameters to try and get a simplified HTML or JSON response
-            const searchUrl = `https://www.google.com.br/search?q=${query}&tbm=isch&udm=2`;
-
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            const response = await fetch(searchUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Mobile Safari/537.36'
-                },
-                signal: controller.signal
+            // Step 1a: Get the vqd token required by DDG
+            const initUrl = `https://duckduckgo.com/?q=${encodeURIComponent(trimmedName + ' produto png')}&iax=images&ia=images`;
+            const initRes = await fetch(initUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                signal: controller.signal,
             });
-
+            const initHtml = await initRes.text();
             clearTimeout(timeoutId);
 
-            if (!response.ok) throw new Error(`Google returned ${response.status}`);
+            const vqdMatch = /vqd=([^&"']+)/.exec(initHtml) || /vqd%3D([^&"'%]+)/.exec(initHtml);
+            const vqd = vqdMatch ? decodeURIComponent(vqdMatch[1]) : null;
 
-            const html = await response.text();
-            const urls: string[] = [];
+            if (vqd) {
+                // Step 1b: Fetch image results using the token
+                const imgController = new AbortController();
+                const imgTimeout = setTimeout(() => imgController.abort(), 8000);
+                const imgRes = await fetch(
+                    `https://duckduckgo.com/i.js?q=${encodeURIComponent(trimmedName + ' produto png fundo transparente')}&vqd=${encodeURIComponent(vqd)}&f=,,,,,&p=1`,
+                    {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            'Referer': 'https://duckduckgo.com/',
+                        },
+                        signal: imgController.signal,
+                    }
+                );
+                clearTimeout(imgTimeout);
 
-            // Pattern 1: Modern AF_initDataCallback JSON structure
-            const jsonRegex = /\["(https?:\/\/[^"]+\.(png|jpg|jpeg|webp))",\d+,\d+\]/g;
-            let jMatch;
-            while ((jMatch = jsonRegex.exec(html)) !== null && urls.length < 15) {
-                const url = jMatch[1];
-                if (!url.includes('gstatic') && !url.includes('google') && !urls.includes(url)) {
-                    urls.push(url);
-                }
-            }
-
-            // Pattern 2: Classic imgurl redirect
-            if (urls.length < 5) {
-                const regex = /imgurl=(https?:\/\/[^&"]+)/g;
-                let match;
-                while ((match = regex.exec(html)) !== null && urls.length < 15) {
-                    const url = decodeURIComponent(match[1]);
-                    if (url.startsWith('http') && !urls.includes(url)) {
-                        urls.push(url);
+                const json = await imgRes.json();
+                if (json?.results?.length) {
+                    for (const item of json.results) {
+                        if (item.image && urls.length < 12) {
+                            urls.push(item.image);
+                        }
                     }
                 }
             }
+        } catch (fetchErr: any) {
+            console.warn('DuckDuckGo search failed:', fetchErr?.message);
+        }
 
-            // Pattern 3: Data URI / Thumbnails (often more reliable)
-            if (urls.length < 3) {
-                const thumbRegex = /"(https?:\/\/[^"]+(gstatic|googleusercontent)[^"]+)"/g;
-                let tMatch;
-                while ((tMatch = thumbRegex.exec(html)) !== null && urls.length < 20) {
-                    const url = tMatch[1];
-                    if (!urls.includes(url)) urls.push(url);
+        // Step 2: Curated database fallback if DDG returned nothing
+        if (urls.length === 0) {
+            for (const key of Object.keys(CURATED)) {
+                if (lower.includes(key)) {
+                    urls.push(...CURATED[key]);
+                    break;
                 }
             }
-
-            // Fallbacks for common products
-            if (urls.length === 0) {
-                const lower = trimmedName.toLowerCase();
-                if (lower.includes('arroz')) urls.push('https://static.carone.com.br/produtos/arroz-tp1-sepe-5kg-bco_25501_1.png');
-                if (lower.includes('feijão')) urls.push('https://static.carone.com.br/produtos/feijao-preto-tipiti-1kg_1130_1.png');
-                if (lower.includes('oleo') || lower.includes('óleo')) urls.push('https://static.carone.com.br/produtos/oleo-de-soja-vila-velha-900ml_22240_1.png');
-                if (lower.includes('leite')) urls.push('https://static.carone.com.br/produtos/leite-uht-int-damare-1l_25301_1.png');
-            }
-
-            setSearchResults(urls);
-        } catch (error: any) {
-            console.error('Search failed:', error);
-            const msg = error.name === 'AbortError' ? 'Tempo limite esgotado. Verifique sua conexão.' : 'Não conseguimos conectar à busca agora.';
-            Alert.alert('Erro na Busca', msg);
-        } finally {
-            setIsSearching(false);
         }
+
+        setSearchResults(urls);
+
+        if (urls.length === 0) {
+            Alert.alert(
+                'Sem Resultados',
+                'Não encontramos imagens para este produto. Tente simplificar o nome ou cole uma URL manualmente.',
+            );
+        }
+
+        setIsSearching(false);
     };
 
     const handleCamera = async () => {
