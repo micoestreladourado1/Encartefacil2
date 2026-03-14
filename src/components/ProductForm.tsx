@@ -50,52 +50,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 12000);
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-            // Force a simple mobile view for reliable HTML scraping
-            const mobileUA = 'Mozilla/5.0 (Linux; Android 4.4.2; Nexus 4 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.114 Mobile Safari/537.36';
+            // Nova URL do Proxy de Busca Centralizado (Fix Instantâneo)
+            const proxyUrl = `https://encartefacil2.vercel.app/api/search?q=${encodeURIComponent('imagens ' + trimmedName)}`;
 
-            // Google Graphics search with 'udm=2' (modern images) and 'tbm=isch' (legacy images)
-            const response = await fetch(
-                `https://www.google.com/search?q=${encodeURIComponent('imagens ' + trimmedName)}&tbm=isch&udm=2`,
-                {
-                    headers: { 'User-Agent': mobileUA },
-                    signal: controller.signal
-                }
-            );
+            const response = await fetch(proxyUrl, {
+                signal: controller.signal
+            });
             clearTimeout(timeoutId);
 
-            if (!response.ok) throw new Error(`Google returned ${response.status}`);
+            if (!response.ok) throw new Error(`Proxy returned ${response.status}`);
 
-            const html = await response.text();
-            const urls: string[] = [];
-
-            // Pattern 1: Classic image tags with src
-            const imgRegex = /<img[^>]+src="([^">]+)"/g;
-            let match;
-            while ((match = imgRegex.exec(html)) !== null && urls.length < 40) {
-                const url = match[1];
-                if (url.startsWith('http') && !url.includes('google.com/favicon') && !url.includes('menu_icon')) {
-                    if (!urls.includes(url)) urls.push(url);
-                }
-            }
-
-            // Pattern 2: Modern data-src / encrypted thumbnails
-            const dataSrcRegex = /data-src="([^">]+)"/g;
-            while ((match = dataSrcRegex.exec(html)) !== null && urls.length < 50) {
-                const url = match[1];
-                if (url.startsWith('http') && !urls.includes(url)) {
-                    urls.push(url);
-                }
-            }
-
-            // Pattern 3: Static encrypted thumbnails in strings
-            const thumbRegex = /"(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"]+)"/g;
-            let tMatch;
-            while ((tMatch = thumbRegex.exec(html)) !== null && urls.length < 60) {
-                const url = tMatch[1];
-                if (!urls.includes(url)) urls.push(url);
-            }
+            const data = await response.json();
+            const urls = data.results || [];
 
             setSearchResults(urls);
 
