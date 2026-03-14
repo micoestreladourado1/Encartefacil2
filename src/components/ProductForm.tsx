@@ -52,8 +52,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-            // Use an old mobile User-Agent to force Google to return a simple, scrapable HTML page (Table-based)
-            const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/600.1.3 (KHTML, like Gecko) Version/8.0 Mobile/12A4345d Safari/600.1.4';
+            // Use a more recent but still simple mobile User-Agent to get consistent HTML structure
+            const mobileUA = 'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36';
 
             // Search for the product name with 'imagens' prefix for better precision
             const response = await fetch(
@@ -70,24 +70,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({ onAdd, editingProduct,
             const html = await response.text();
             const urls: string[] = [];
 
-            // Pattern 1: Basic <img> tags from the simple mobile version
+            // Pattern 1: Basic <img> tags (common in simpler mobile versions)
             const imgRegex = /<img[^>]+src="([^">]+)"/g;
             let match;
-            while ((match = imgRegex.exec(html)) !== null && urls.length < 20) {
+            while ((match = imgRegex.exec(html)) !== null && urls.length < 30) {
                 const url = match[1];
-                // Ignore small icons or google UI elements
-                if (url.startsWith('http') && !url.includes('google.com/favicon') && !url.includes('menu_icon')) {
+                // Focus on actual product images and ignore UI elements
+                if (url.startsWith('http') && !url.includes('google.com/favicon') && !url.includes('menu_icon') && !url.includes('search?q=')) {
                     if (!urls.includes(url)) urls.push(url);
                 }
             }
 
-            // Pattern 2: Fallback for modern strings if Google ignores the UA (gstatic thumbnails)
-            if (urls.length < 5) {
-                const thumbRegex = /"(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"]+)"/g;
-                let tMatch;
-                while ((tMatch = thumbRegex.exec(html)) !== null && urls.length < 30) {
-                    const url = tMatch[1];
-                    if (!urls.includes(url)) urls.push(url);
+            // Pattern 2: Fallback for encrypted gstatic thumbnails (very common in modern responses)
+            const thumbRegex = /"(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"]+)"/g;
+            let tMatch;
+            while ((tMatch = thumbRegex.exec(html)) !== null && urls.length < 40) {
+                const url = tMatch[1];
+                if (!urls.includes(url)) urls.push(url);
+            }
+
+            // Pattern 3: Fallback for JSON-like data patterns (AF_initDataCallback)
+            const jsonImgRegex = /\["(https?:\/\/[^"]+)",\s*[0-9]+,\s*[0-9]+\]/g;
+            let jMatch;
+            while ((jMatch = jsonImgRegex.exec(html)) !== null && urls.length < 50) {
+                const url = jMatch[1];
+                if (!url.includes('gstatic.com') && !urls.includes(url)) {
+                    urls.push(url);
                 }
             }
 
