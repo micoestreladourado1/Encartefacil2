@@ -17,68 +17,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        // Modern Desktop UA to get the full JS payload (which we can then scrape as string)
-        const desktopUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36';
+        let results: string[] = [];
 
-        // Remove sout=1 and use modern search if legacy fails
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(q)}&tbm=isch`;
+        // --- STEP 1: GOOGLE SCRAPE (LEGACY) ---
+        try {
+            const googleUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12A365 Safari/600.1.4';
+            const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(q)}&tbm=isch&sout=1`;
 
-        const response = await fetch(searchUrl, {
-            headers: {
-                'User-Agent': desktopUA,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-                'Referer': 'https://www.google.com/'
-            }
-        });
-
-        const html = await response.text();
-        const urlsSet = new Set<string>();
-
-        // Brute Force Pattern 1: Look for encrypted thumbnails anywhere in the source (common in JS payloads)
-        const bruteTbnRegex = /https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=tbn:[^"'\s\\]+/g;
-        let tbnMatches = html.match(bruteTbnRegex);
-        if (tbnMatches) {
-            tbnMatches.forEach(url => {
-                // Clean up common URL escapes in JS strings
-                const cleanUrl = url.replace(/\\u003d/g, '=').replace(/\\u0026/g, '&').replace(/&amp;/g, '&');
-                if (urlsSet.size < 60) urlsSet.add(cleanUrl);
+            const gResp = await fetch(googleUrl, {
+                headers: { 'User-Agent': googleUA },
+                signal: AbortSignal.timeout(5000)
             });
-        }
 
-        // Brute Force Pattern 2: Look for direct image links in the AF_initDataCallback arrays
-        // These URLs often end in jpg/png/etc and are inside quotes
-        const directImgRegex = /"(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^"]+)?)",\d+,\d+/g;
-        let directMatch;
-        while ((directMatch = directImgRegex.exec(html)) !== null && urlsSet.size < 80) {
-            const url = directMatch[1];
-            if (!url.includes('google') || url.includes('gstatic')) {
-                urlsSet.add(url.replace(/\\u003d/g, '=').replace(/\\u0026/g, '&').replace(/&amp;/g, '&'));
-            }
-        }
-
-        const results = Array.from(urlsSet);
-
-        // Final Fallback: if still empty, try the old mobile scraping one last time
-        if (results.length === 0) {
-            return res.status(200).json({
-                results: [],
-                _meta: {
-                    error: 'No images found in v1.5 brute force',
-                    length: html.length,
-                    snippet: html.substring(0, 500)
+            if (gResp.ok) {
+                const html = await gResp.text();
+                const gRegex = /src="(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"]+)"/g;
+                let m;
+                while ((m = gRegex.exec(html)) !== null && results.length < 20) {
+                    if (!results.includes(m[1])) results.push(m[1]);
                 }
-            });
+            }
+        } catch (e) {
+            console.error('Google Step Failed:', e);
+        }
+
+        // --- STEP 2: DUCKDUCKGO FALLBACK (If Google returns nothing or is blocked) ---
+        if (results.length < 3) {
+            try {
+                const ddgUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36';
+
+                // 1. Get the VQD token
+                const tokenUrl = `https://duckduckgo.com/?q=${encodeURIComponent(q)}&iax=images&ia=images`;
+                const tResp = await fetch(tokenUrl, {
+                    headers: { 'User-Agent': ddgUA },
+                    signal: AbortSignal.timeout(5000)
+                });
+
+                const tText = await tResp.text();
+                const vqdMatch = tText.match(/vqd=['"](.*?)['"]/);
+
+                if (vqdMatch) {
+                    const vqd = vqdMatch[1];
+                    // 2. Fetch image JSON using the token
+                    const apiUrl = `https://duckduckgo.com/i.js?o=json&q=${encodeURIComponent(q)}&vqd=${vqd}`;
+                    const aResp = await fetch(apiUrl, {
+                        headers: { 'User-Agent': ddgUA },
+                        signal: AbortSignal.timeout(5000)
+                    });
+
+                    if (aResp.ok) {
+                        const data = await aResp.json();
+                        if (data.results && Array.isArray(data.results)) {
+                            data.results.forEach((item: any) => {
+                                if (item.thumbnail && results.length < 50) {
+                                    if (!results.includes(item.thumbnail)) results.push(item.thumbnail);
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('DuckDuckGo Step Failed:', e);
+            }
         }
 
         return res.status(200).json({
-            results: results.slice(0, 50),
+            results,
             _meta: {
                 count: results.length,
-                query: q,
-                version: '1.5'
+                engine: results.length > 0 ? (results[0].includes('gstatic') ? 'google' : 'ddg') : 'none',
+                version: '1.6-hybrid'
             }
         });
+
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
