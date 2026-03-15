@@ -17,68 +17,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        // Updated UA to iPhone 11 (more modern but still gets legacy HTML with sout=1)
-        const modernMobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1';
-
+        const legacyUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12A365 Safari/600.1.4';
         const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(q)}&tbm=isch&sout=1`;
 
         const response = await fetch(searchUrl, {
             headers: {
-                'User-Agent': modernMobileUA,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-                'Referer': 'https://www.google.com/'
+                'User-Agent': legacyUA,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
             }
         });
-
-        if (!response.ok) {
-            throw new Error(`Google returned status ${response.status}`);
-        }
 
         const html = await response.text();
         const urls: string[] = [];
 
-        // Pattern 1: Match encrypted thumbnails with or without quotes
-        // Matches: src="https://..." OR src='https://...' OR src=https://...
-        const imgPatterns = [
-            /src=['"]?(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^'"\s>]+)/g,
-            /src=['"]?(https?:\/\/[^'"\s>]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^'"\s>]+)?)['"]?/g,
-            /["'](https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"']+)["']/g
-        ];
+        // Pattern 1: Match encrypted thumbnails
+        const imgRegex = /<img[^>]+src="(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"]+)"/g;
+        let match;
+        while ((match = imgRegex.exec(html)) !== null && urls.length < 50) {
+            const url = match[1];
+            if (!urls.includes(url)) urls.push(url);
+        }
 
-        imgPatterns.forEach(pattern => {
-            let match;
-            while ((match = pattern.exec(html)) !== null && urls.length < 40) {
+        // Pattern 2: Fallback for other gstatic urls or simple src
+        if (urls.length === 0) {
+            const broadRegex = /src="([^">]+gstatic.com\/images\?q=[^">]+)"/g;
+            while ((match = broadRegex.exec(html)) !== null && urls.length < 30) {
                 const url = match[1];
-                // Clean up any trailing characters if regex was too broad
-                const cleanUrl = url.split('"')[0].split("'")[0].split('\\')[0];
-                if (cleanUrl.startsWith('http') && !urls.includes(cleanUrl)) {
-                    if (!cleanUrl.includes('favicon') && !cleanUrl.includes('logo')) {
-                        urls.push(cleanUrl);
-                    }
-                }
-            }
-        });
-
-        // Debug: if no results, check if we got a "Blocked" page
-        if (urls.length === 0 && html.length < 2000) {
-            console.error('Possible blocking detected. HTML Length:', html.length);
-            // If the HTML is very short, it might be a robot check
-            if (html.includes('detected unusual traffic')) {
-                return res.status(429).json({ error: 'Blocked by Google (Unusual Traffic)', results: [] });
+                if (!urls.includes(url)) urls.push(url);
             }
         }
 
         return res.status(200).json({
             results: urls,
-            _meta: {
-                count: urls.length,
-                query: q,
-                version: '1.3'
-            }
+            _debug_info: urls.length === 0 ? {
+                html_start: html.substring(0, 1000),
+                content_length: html.length,
+                status: response.status
+            } : undefined
         });
     } catch (error: any) {
-        console.error('Search Proxy v13 Error:', error.message);
-        return res.status(500).json({ error: 'Failed to fetch images (v13)', details: error.message });
+        return res.status(500).json({ error: error.message });
     }
 }
