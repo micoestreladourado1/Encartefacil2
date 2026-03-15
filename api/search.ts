@@ -1,14 +1,10 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // CORS configuration
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    );
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
     if (req.method === 'OPTIONS') {
         res.status(200).end();
@@ -16,24 +12,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { q } = req.query;
-
     if (!q || typeof q !== 'string') {
         return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
 
     try {
-        // Critical Fix v12: Use a Legacy User-Agent to force Google's 'sout=1' simple HTML mode.
-        // This UA is from an older iPhone which Google reliably serves the plain HTML image search.
-        const legacyUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12A365 Safari/600.1.4';
+        // Updated UA to iPhone 11 (more modern but still gets legacy HTML with sout=1)
+        const modernMobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1';
 
-        // URL with sout=1 (Small Outreach) forces the legacy interface without complex JS.
         const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(q)}&tbm=isch&sout=1`;
 
         const response = await fetch(searchUrl, {
             headers: {
-                'User-Agent': legacyUA,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+                'User-Agent': modernMobileUA,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Referer': 'https://www.google.com/'
             }
         });
 
@@ -44,32 +38,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const html = await response.text();
         const urls: string[] = [];
 
-        // In legacy mode, images are straightforward <img> tags with simple encrypted-tbn URLs.
-        // We look for src attributes that contain 'gstatic.com/images?q=tbn:'
-        const imgRegex = /<img[^>]+src="(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"]+)"/g;
-        let match;
+        // Pattern 1: Match encrypted thumbnails with or without quotes
+        // Matches: src="https://..." OR src='https://...' OR src=https://...
+        const imgPatterns = [
+            /src=['"]?(https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^'"\s>]+)/g,
+            /src=['"]?(https?:\/\/[^'"\s>]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^'"\s>]+)?)['"]?/g,
+            /["'](https?:\/\/encrypted-tbn[0-9]\.gstatic\.com\/images\?q=[^"']+)["']/g
+        ];
 
-        while ((match = imgRegex.exec(html)) !== null && urls.length < 50) {
-            const url = match[1];
-            if (!urls.includes(url)) {
-                urls.push(url);
-            }
-        }
-
-        // If no results in Pattern 1, try the broader <img> tag pattern
-        if (urls.length === 0) {
-            const broadRegex = /<img[^>]+src="([^">]+)"/g;
-            while ((match = broadRegex.exec(html)) !== null && urls.length < 30) {
+        imgPatterns.forEach(pattern => {
+            let match;
+            while ((match = pattern.exec(html)) !== null && urls.length < 40) {
                 const url = match[1];
-                if (url.startsWith('http') && !url.includes('favicon') && !url.includes('google.com/favicon')) {
-                    if (!urls.includes(url)) urls.push(url);
+                // Clean up any trailing characters if regex was too broad
+                const cleanUrl = url.split('"')[0].split("'")[0].split('\\')[0];
+                if (cleanUrl.startsWith('http') && !urls.includes(cleanUrl)) {
+                    if (!cleanUrl.includes('favicon') && !cleanUrl.includes('logo')) {
+                        urls.push(cleanUrl);
+                    }
                 }
             }
+        });
+
+        // Debug: if no results, check if we got a "Blocked" page
+        if (urls.length === 0 && html.length < 2000) {
+            console.error('Possible blocking detected. HTML Length:', html.length);
+            // If the HTML is very short, it might be a robot check
+            if (html.includes('detected unusual traffic')) {
+                return res.status(429).json({ error: 'Blocked by Google (Unusual Traffic)', results: [] });
+            }
         }
 
-        return res.status(200).json({ results: urls });
+        return res.status(200).json({
+            results: urls,
+            _meta: {
+                count: urls.length,
+                query: q,
+                version: '1.3'
+            }
+        });
     } catch (error: any) {
-        console.error('Search Proxy v12 Error:', error.message);
-        return res.status(500).json({ error: 'Failed to fetch images (v12)', details: error.message });
+        console.error('Search Proxy v13 Error:', error.message);
+        return res.status(500).json({ error: 'Failed to fetch images (v13)', details: error.message });
     }
 }
