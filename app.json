@@ -18,7 +18,7 @@
     "android": {
       "package": "com.antigravity.encartespro",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.jpg",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -28,9 +28,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite",
-      "expo-secure-store",
-      "expo-application"
+      "expo-sqlite"
     ]
   }
 }
