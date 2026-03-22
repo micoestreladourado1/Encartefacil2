@@ -8,8 +8,8 @@ const STORAGE_KEYS = {
     ACTIVATION_EMAIL: 'encartes_pro_activation_email',
 };
 
-// Placeholder API URL - needs to be updated with the real one
-const API_BASE_URL = 'https://api.vendaspro.online';
+// Update this with your actual Vercel deployment URL
+const API_BASE_URL = 'https://encartes-pro.vercel.app/api';
 
 export interface ActivationResponse {
     status: 'active' | 'inactive' | 'blocked' | 'error';
