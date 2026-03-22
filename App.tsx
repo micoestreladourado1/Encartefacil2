@@ -1,19 +1,27 @@
 import "./global.css";
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, TextInput, FlatList } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, TextInput, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { initDb } from './src/database/db';
 import { getCurrentFlyer, saveCurrentFlyer } from './src/database/repository';
 import { ProductForm } from './src/components/ProductForm';
 import { FlyerPreview } from './src/components/FlyerPreview';
 import { Flyer, Product, Theme } from './src/types';
-import { Trash2, Share2, Edit2 } from 'lucide-react-native';
+import { Trash2, Share2, Edit2, ShieldCheck } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
 import { THEMES } from './src/constants';
+import { ActivationService } from './src/services/activationService';
+import { ActivationScreen } from './src/components/ActivationScreen';
+import { BlockedScreen } from './src/components/BlockedScreen';
+
+type ActivationState = 'checking' | 'active' | 'inactive' | 'blocked';
 
 export default function App() {
+  const [activationState, setActivationState] = useState<ActivationState>('checking');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+
   const [flyer, setFlyer] = useState<Flyer>({
     id: '1',
     themeId: 'oferta-do-dia',
@@ -27,9 +35,47 @@ export default function App() {
   const viewShotRef = useRef<ViewShot>(null);
   const flatListRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    let mounted = true;
+  // --- Lógica de Ativação ---
+  const checkInitialActivation = async () => {
+    setActivationState('checking');
+    try {
+      // 1. Verifica se já tem token local
+      const isActivatedLocally = await ActivationService.getIsActivated();
 
+      if (!isActivatedLocally) {
+        setActivationState('inactive');
+        return;
+      }
+
+      // 2. Valida com o servidor
+      const result = await ActivationService.validateStatus();
+
+      if (result.status === 'active') {
+        setActivationState('active');
+      } else if (result.status === 'blocked') {
+        setActivationState('blocked');
+        setErrorMessage(result.message || '');
+      } else {
+        setActivationState('inactive');
+      }
+    } catch (error) {
+      console.error('Validation auto-check failed', error);
+      // Fallback: se falhar conexão, mas tiver token, podemos deixar entrar?
+      // O requisito diz: "Se estiver inválido ou bloqueado: desativar app imediatamente"
+      // Vamos assumir que sem internet ou sem validação, volta para ativação.
+      setActivationState('inactive');
+    }
+  };
+
+  useEffect(() => {
+    checkInitialActivation();
+  }, []);
+
+  // --- Inicialização do App ---
+  useEffect(() => {
+    if (activationState !== 'active') return;
+
+    let mounted = true;
     const initApp = async () => {
       try {
         console.log('Starting SQLite Initialization...');
@@ -49,17 +95,17 @@ export default function App() {
 
     initApp();
     return () => { mounted = false; };
-  }, []);
+  }, [activationState]);
 
   useEffect(() => {
-    if (isDbReady) {
+    if (isDbReady && activationState === 'active') {
       try {
         saveCurrentFlyer(flyer);
       } catch (e) {
         console.error('Failed to save flyer', e);
       }
     }
-  }, [flyer, isDbReady]);
+  }, [flyer, isDbReady, activationState]);
 
   const handleShare = async () => {
     if (!viewShotRef.current) return;
@@ -160,6 +206,26 @@ export default function App() {
       </View>
     </View>
   ), [handleRemoveProduct]);
+
+  // --- Renderização Condicional ---
+  if (activationState === 'checking') {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#dc2626" />
+        <Text className="mt-4 text-gray-500 font-bold uppercase tracking-widest text-xs">
+          Verificando Licença...
+        </Text>
+      </View>
+    );
+  }
+
+  if (activationState === 'blocked') {
+    return <BlockedScreen message={errorMessage} onRetry={checkInitialActivation} />;
+  }
+
+  if (activationState === 'inactive') {
+    return <ActivationScreen onActivated={() => setActivationState('active')} />;
+  }
 
   return (
     <SafeAreaProvider>
@@ -272,6 +338,13 @@ export default function App() {
             </View>
           }
         />
+
+        <View className="bg-gray-50 py-2 border-t border-gray-100 flex-row justify-center items-center opacity-40">
+          <ShieldCheck color="#6b7280" size={12} className="mr-1" />
+          <Text className="text-gray-400 text-[10px] uppercase font-bold tracking-widest text-center">
+            Arquivo oficial: encartespro.apk • Licenciado
+          </Text>
+        </View>
 
         <StatusBar style="dark" />
       </SafeAreaView>
