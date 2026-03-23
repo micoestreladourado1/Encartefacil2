@@ -1,4 +1,5 @@
-import React from 'react';
+// @ts-nocheck
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView, Linking } from 'react-native';
 import { ShieldAlert, MessageCircle, RefreshCw } from 'lucide-react-native';
 

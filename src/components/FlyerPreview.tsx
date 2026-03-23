@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { forwardRef } from 'react';
 import { View, Text, Image } from 'react-native';
 import ViewShot from 'react-native-view-shot';

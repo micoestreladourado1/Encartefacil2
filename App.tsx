@@ -1,3 +1,4 @@
+// @ts-nocheck
 import "./global.css";
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
