@@ -28,7 +28,7 @@ jobs:
           cache: 'npm'
 
       - name: 📦 Instalar dependências
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: 🏗️ Gerar projeto nativo (prebuild)
         run: npx expo prebuild --platform android --no-install
