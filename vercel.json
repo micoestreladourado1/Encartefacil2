@@ -2,8 +2,28 @@
     "version": 2,
     "rewrites": [
         {
+            "source": "/api/kiwify-webhook",
+            "destination": "/api/kiwify-webhook.ts"
+        },
+        {
+            "source": "/api/activate",
+            "destination": "/api/activate.ts"
+        },
+        {
+            "source": "/api/validate",
+            "destination": "/api/validate.ts"
+        },
+        {
             "source": "/api/search",
             "destination": "/api/search.ts"
+        },
+        {
+            "source": "/api/test",
+            "destination": "/api/test.ts"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
         }
     ]
 }
