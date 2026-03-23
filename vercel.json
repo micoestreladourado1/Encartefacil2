@@ -2,14 +2,33 @@
     "version": 2,
     "cleanUrls": true,
     "trailingSlash": false,
-    "rewrites": [
+    "routes": [
         {
-            "source": "/api/(.*)",
-            "destination": "/api/$1"
+            "src": "/api/kiwify-webhook",
+            "dest": "/api/kiwify-webhook.ts"
         },
         {
-            "source": "/(.*)",
-            "destination": "/index.html"
+            "src": "/api/activate",
+            "dest": "/api/activate.ts"
+        },
+        {
+            "src": "/api/validate",
+            "dest": "/api/validate.ts"
+        },
+        {
+            "src": "/api/search",
+            "dest": "/api/search.ts"
+        },
+        {
+            "src": "/api/test",
+            "dest": "/api/test.ts"
+        },
+        {
+            "handle": "filesystem"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
         }
     ]
 }
