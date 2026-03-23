@@ -8,8 +8,8 @@ const STORAGE_KEYS = {
     ACTIVATION_EMAIL: 'encartes_pro_activation_email',
 };
 
-// Update this with your actual Vercel deployment URL
-const API_BASE_URL = 'https://encartes-pro.vercel.app/api';
+// Update this with your actual Supabase Function URL
+const API_BASE_URL = 'https://bmsewmfttznivucbqkaz.supabase.co/functions/v1/smooth-service';
 
 export interface ActivationResponse {
     status: 'active' | 'inactive' | 'blocked' | 'error';

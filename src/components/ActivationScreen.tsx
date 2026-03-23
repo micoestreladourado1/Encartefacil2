@@ -15,10 +15,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     const [requestingChange, setRequestingChange] = useState(false);
 
     const handleActivate = async () => {
-        if (!code.trim()) {
-            Alert.alert('Erro', 'Por favor, insira o código de ativação.');
-            return;
-        }
+        // Permitimos código vazio para a ativação mágica via e-mail
         if (!email.trim() || !email.includes('@')) {
             Alert.alert('Erro', 'Por favor, insira um e-mail válido.');
             return;
